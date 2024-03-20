@@ -9,12 +9,13 @@ const allowedIPs: any = [
   '52.32.178.7',
   '::1',
   '127.0.0.1',
-  '34.232.187.47',
+  '::ffff:127.0.0.1',
 ];
 
 // Custom middleware to restrict access to allowed IP addresses
 const restrictAccess = (req: Request, res: Response, next: NextFunction) => {
-  const clientIP = req.ip;
+  const clientIP = req.headers['x-forwarded-for'] || req.ip;
+
   console.log('IP Address: ', { clientIP });
 
   if (allowedIPs.includes(clientIP)) {
