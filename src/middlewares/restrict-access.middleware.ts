@@ -16,7 +16,7 @@ const allowedIPs: any = [
 const restrictAccess = (req: Request, res: Response, next: NextFunction) => {
   const clientIP = req.headers['x-forwarded-for'] || req.ip;
 
-  console.log(`IP Address: ${clientIP} ------- ${req.headers}`);
+  console.log(`IP Address: ${clientIP} ------- ${req.headers['x-real-ip']}`);
 
   if (allowedIPs.includes(clientIP)) {
     next(); // Continue to the next middleware if IP address is allowed
