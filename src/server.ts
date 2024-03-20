@@ -20,6 +20,10 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(middlewareRoot);
 
+app.get('/', (req: Request, res: Response) => {
+  res.send('Server is running');
+});
+
 // Endpoint to generate JWT token by checking publicKey and passphrase
 app.post('/v1/login', (req: Request, res: Response) => {
   const { public_key, pass_phrase } = req.body;
