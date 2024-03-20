@@ -1,0 +1,113 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express, { Request, Response } from 'express';
+import bodyParser from 'body-parser';
+import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import { CustomRequest } from './interface';
+import { apiResponse } from './utils/apiResponse';
+import middlewareRoot, { restrictAccess, authenticateJWT } from './middlewares';
+import { client } from './services/binance-connector.service';
+import { NewOrderRespType, OrderType } from '@binance/connector-typescript';
+// import { Interval } from '@binance/connector-typescript';
+
+const app = express();
+const port = process.env.PORT;
+const secretKey = process.env.SECRET_KEY as string;
+
+app.use(bodyParser.json());
+app.use(cors());
+app.use(middlewareRoot);
+
+// Endpoint to generate JWT token by checking publicKey and passphrase
+app.post('/v1/login', (req: Request, res: Response) => {
+  const { public_key, pass_phrase } = req.body;
+
+  // FROM ENV
+  const publicKey = process.env.PUBLIC_KEY as string;
+  const passPhrase = process.env.PASS_PHRASE as string;
+
+  if (public_key === publicKey && pass_phrase === passPhrase) {
+    const token = jwt.sign({ public_key }, secretKey);
+    return apiResponse({
+      res,
+      message: 'Logged In.',
+      data: {
+        accessToken: token,
+      },
+    });
+  } else {
+    return apiResponse({
+      res,
+      message: 'Invalid Credentials.',
+      code: 400,
+    });
+  }
+});
+
+// TradingView alert webhook endpoint
+app.post('/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
+  // Handle the TradingView alert webhook here
+  const { ticker, strategy } = req.body;
+  const { order_action } = strategy;
+
+  const base_currency = ticker.replace(/USDT/g, '');
+
+  const asset = order_action === 'buy' ? 'USDT' : base_currency;
+
+  const resp = await client.userAsset({
+    asset,
+  });
+
+  if (!resp.length) {
+    return apiResponse({
+      res,
+      code: 400,
+      success: false,
+      message: 'Invalid Asset or Asset Balance is zero.',
+    });
+  }
+
+  const asset_balance = parseFloat(resp[0].free);
+
+  const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
+
+  const multiplier = Math.pow(10, 5);
+  const quantity: number =
+    order_action === 'buy'
+      ? Math.trunc(((asset_balance - 1) / symbeol_current_market_price.price) * multiplier) / multiplier
+      : Math.trunc(asset_balance * multiplier) / multiplier;
+
+  // Add your logic to take actions based on the alert
+  let orderResponse = null;
+
+  if (order_action === 'buy' && asset_balance < 1) {
+    return apiResponse({
+      res,
+      code: 400,
+      message: `Can't ${order_action} '${base_currency}', Insuficient Funds.`,
+    });
+  }
+
+  try {
+    orderResponse = await client.newOrder(ticker, order_action.toUpperCase(), OrderType.MARKET, {
+      newOrderRespType: NewOrderRespType.RESULT,
+      quantity: Math.abs(quantity),
+    });
+  } catch (error) {
+    return apiResponse({ res, code: 400, errors: error });
+  }
+
+  apiResponse({
+    res,
+    message: 'Webhook received and processed successfully',
+    data: orderResponse,
+  });
+});
+
+// websocketStreamClient.ticker('btcusdt');
+
+app.listen(port, () => {
+  console.log(`\n⚡ Server is running at http://localhost:${port}`);
+});
