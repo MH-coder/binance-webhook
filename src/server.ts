@@ -66,12 +66,12 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
     asset,
   });
 
-  if (!resp.length) {
+  if (!resp.length || Number(parseFloat(resp[0]?.free).toFixed(5)) === 0) {
     return apiResponse({
       res,
       code: 400,
       success: false,
-      message: 'Invalid Asset or Asset Balance is zero.',
+      message: 'Invalid Asset / Asset Balance is zero or below accepted threshhold.',
     });
   }
 
