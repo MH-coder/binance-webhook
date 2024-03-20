@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path = require('path');
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import express, { Request, Response } from 'express';
 import bodyParser from 'body-parser';
@@ -11,6 +13,7 @@ import middlewareRoot, { restrictAccess, authenticateJWT } from './middlewares';
 import { client } from './services/binance-connector.service';
 import { NewOrderRespType, OrderType } from '@binance/connector-typescript';
 // import { Interval } from '@binance/connector-typescript';
+console.log('wow: ', process.env.PORT);
 
 const app = express();
 const port = process.env.PORT;
