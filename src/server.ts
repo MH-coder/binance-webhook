@@ -20,7 +20,7 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(middlewareRoot);
 
-app.get('/', (req: Request, res: Response) => {
+app.get('/v1', (req: Request, res: Response) => {
   res.send('Server is running');
 });
 
