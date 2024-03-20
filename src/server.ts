@@ -13,7 +13,6 @@ import middlewareRoot, { restrictAccess, authenticateJWT } from './middlewares';
 import { client } from './services/binance-connector.service';
 import { NewOrderRespType, OrderType } from '@binance/connector-typescript';
 // import { Interval } from '@binance/connector-typescript';
-console.log('wow: ', process.env.PORT);
 
 const app = express();
 const port = process.env.PORT;
@@ -23,12 +22,12 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(middlewareRoot);
 
-app.get('/v1', (req: Request, res: Response) => {
+app.get('/api/v1', (req: Request, res: Response) => {
   res.send('Server is running');
 });
 
 // Endpoint to generate JWT token by checking publicKey and passphrase
-app.post('/v1/login', (req: Request, res: Response) => {
+app.post('/api/v1/login', (req: Request, res: Response) => {
   const { public_key, pass_phrase } = req.body;
 
   // FROM ENV
@@ -54,7 +53,7 @@ app.post('/v1/login', (req: Request, res: Response) => {
 });
 
 // TradingView alert webhook endpoint
-app.post('/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
+app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
   // Handle the TradingView alert webhook here
   const { ticker, strategy } = req.body;
   const { order_action } = strategy;
