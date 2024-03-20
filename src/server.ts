@@ -115,5 +115,5 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
 // websocketStreamClient.ticker('btcusdt');
 
 app.listen(port, () => {
-  console.log(`\n🚀 Server is running at http://localhost:${port}`);
+  console.log(`\nServer is running at http://localhost:${port} 🚀`);
 });
