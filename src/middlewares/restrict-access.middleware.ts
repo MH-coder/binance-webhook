@@ -15,10 +15,12 @@ const allowedIPs: any = [
 // Custom middleware to restrict access to allowed IP addresses
 const restrictAccess = (req: Request, res: Response, next: NextFunction) => {
   const clientIP = req.ip;
+  console.log('IP Address: ', { clientIP });
+
   if (allowedIPs.includes(clientIP)) {
     next(); // Continue to the next middleware if IP address is allowed
   } else {
-    apiResponse({ res, code: 403, message: 'Forbidden' });
+    apiResponse({ res, code: 403, message: 'Forbidden - Unknown IP Address' });
   }
 };
 
