@@ -35,7 +35,7 @@ app.post('/api/v1/login', (req: Request, res: Response) => {
   const passPhrase = process.env.PASS_PHRASE as string;
 
   if (public_key === publicKey && pass_phrase === passPhrase) {
-    const token = jwt.sign({ public_key }, secretKey);
+    const token = jwt.sign({ public_key }, secretKey, { expiresIn: '30d' });
     return apiResponse({
       res,
       message: 'Logged In.',
