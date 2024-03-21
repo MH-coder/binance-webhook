@@ -56,7 +56,7 @@ app.post('/api/v1/login', (req: Request, res: Response) => {
 app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
   // Handle the TradingView alert webhook here
   const { ticker, strategy } = req.body;
-  const { order_action } = strategy;
+  const { order_action, order_price } = strategy;
 
   const base_currency = ticker.replace(/USDT/g, '');
 
@@ -77,12 +77,12 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
 
   const asset_balance = parseFloat(resp[0].free);
 
-  const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
+  // const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
 
   const multiplier = Math.pow(10, 5);
   const quantity: number =
     order_action === 'buy'
-      ? Math.trunc(((asset_balance - 1) / symbeol_current_market_price.price) * multiplier) / multiplier
+      ? Math.trunc(((asset_balance - 1) / order_price) * multiplier) / multiplier
       : Math.trunc(asset_balance * multiplier) / multiplier;
 
   // Add your logic to take actions based on the alert
