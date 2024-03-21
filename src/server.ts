@@ -77,12 +77,12 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
 
   const asset_balance = parseFloat(resp[0].free);
 
-  // const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
+  const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
 
   const multiplier = Math.pow(10, 5);
   const quantity: number =
     order_action === 'buy'
-      ? Math.trunc(((asset_balance - 1) / order_price) * multiplier) / multiplier
+      ? Math.trunc(((asset_balance - 1) / symbeol_current_market_price.price) * multiplier) / multiplier
       : Math.trunc(asset_balance * multiplier) / multiplier;
 
   // Add your logic to take actions based on the alert
