@@ -12,7 +12,7 @@ import { apiResponse } from './utils/apiResponse';
 import middlewareRoot, { restrictAccess, authenticateJWT } from './middlewares';
 import { client } from './services/binance-connector.service';
 import { NewOrderRespType, OrderType } from '@binance/connector-typescript';
-// import { Interval } from '@binance/connector-typescript';
+import { adjustQuantityToLotSize, getLotSizeConstraints } from './services/binance-order.service';
 
 const app = express();
 const port = process.env.PORT;
@@ -130,7 +130,7 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
       res,
       code: 400,
       success: false,
-      message: 'Invalid Asset / Asset Balance is zero or below accepted threshold.',
+      message: `Invalid Asset (${asset}) / Asset Balance (${asset}) is zero or below accepted threshold.`,
     });
   }
 
@@ -149,11 +149,14 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
     });
   }
 
-  console.log({ lotSizeFilter });
-
   // Adjust the quantity to meet lot size constraints
+  const multiplier = Math.pow(10, 5);
+
   let quantity = asset_balance / symbol_current_market_price.price;
-  quantity = adjustQuantityToLotSize(quantity, lotSizeFilter);
+  quantity =
+    order_action === 'buy'
+      ? Math.trunc(adjustQuantityToLotSize(quantity, lotSizeFilter) * multiplier) / multiplier
+      : Math.trunc(adjustQuantityToLotSize(asset_balance, lotSizeFilter) * multiplier) / multiplier;
 
   console.log({ quantity });
 
@@ -183,25 +186,6 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
     data: orderResponse,
   });
 });
-
-async function getLotSizeConstraints(symbol: string) {
-  const response = await client.exchangeInformation();
-  if (response && response.symbols) {
-    const symbolInfo = response.symbols.find((s: any) => s.symbol === symbol);
-    if (symbolInfo && symbolInfo.filters) {
-      return symbolInfo.filters.find((f: any) => f.filterType === 'LOT_SIZE');
-    }
-  }
-  return null;
-}
-
-function adjustQuantityToLotSize(quantity: number, lotSizeFilter: any) {
-  const minQty = parseFloat(lotSizeFilter.minQty);
-  const stepSize = parseFloat(lotSizeFilter.stepSize);
-
-  const adjustedQuantity = minQty + Math.floor((quantity - minQty) / stepSize) * stepSize;
-  return adjustedQuantity;
-}
 
 // websocketStreamClient.ticker('btcusdt');
 
