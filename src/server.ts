@@ -53,6 +53,65 @@ app.post('/api/v1/login', (req: Request, res: Response) => {
 });
 
 // TradingView alert webhook endpoint
+// app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
+//   // Handle the TradingView alert webhook here
+//   const { ticker, strategy } = req.body;
+//   const { order_action, order_price } = strategy;
+
+//   const base_currency = ticker.replace(/USDT/g, '');
+
+//   const asset = order_action === 'buy' ? 'USDT' : base_currency;
+
+//   const resp = await client.userAsset({
+//     asset,
+//   });
+
+//   if (!resp.length || Number(parseFloat(resp[0]?.free).toFixed(5)) === 0) {
+//     return apiResponse({
+//       res,
+//       code: 400,
+//       success: false,
+//       message: 'Invalid Asset / Asset Balance is zero or below accepted threshhold.',
+//     });
+//   }
+
+//   const asset_balance = parseFloat(resp[0].free);
+
+//   const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
+
+//   const multiplier = Math.pow(10, 5);
+//   const quantity: number =
+//     order_action === 'buy'
+//       ? Math.trunc(((asset_balance - 1) / symbeol_current_market_price.price) * multiplier) / multiplier
+//       : Math.trunc(asset_balance * multiplier) / multiplier;
+
+//   // Add your logic to take actions based on the alert
+//   let orderResponse = null;
+
+//   if (order_action === 'buy' && asset_balance < 1) {
+//     return apiResponse({
+//       res,
+//       code: 400,
+//       message: `Can't ${order_action} '${base_currency}', Insuficient Funds.`,
+//     });
+//   }
+
+//   try {
+//     orderResponse = await client.newOrder(ticker, order_action.toUpperCase(), OrderType.MARKET, {
+//       newOrderRespType: NewOrderRespType.RESULT,
+//       quantity: Math.abs(quantity),
+//     });
+//   } catch (error) {
+//     return apiResponse({ res, code: 400, errors: error });
+//   }
+
+//   apiResponse({
+//     res,
+//     message: 'Webhook received and processed successfully',
+//     data: orderResponse,
+//   });
+// });
+
 app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (req: CustomRequest, res: Response) => {
   // Handle the TradingView alert webhook here
   const { ticker, strategy } = req.body;
@@ -71,19 +130,32 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
       res,
       code: 400,
       success: false,
-      message: 'Invalid Asset / Asset Balance is zero or below accepted threshhold.',
+      message: 'Invalid Asset / Asset Balance is zero or below accepted threshold.',
     });
   }
 
   const asset_balance = parseFloat(resp[0].free);
 
-  const symbeol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
+  const symbol_current_market_price: any = await client.symbolPriceTicker({ symbol: ticker });
 
-  const multiplier = Math.pow(10, 5);
-  const quantity: number =
-    order_action === 'buy'
-      ? Math.trunc(((asset_balance - 1) / symbeol_current_market_price.price) * multiplier) / multiplier
-      : Math.trunc(asset_balance * multiplier) / multiplier;
+  const lotSizeFilter: any = await getLotSizeConstraints(ticker); // Fetch lot size constraints
+
+  if (!lotSizeFilter) {
+    return apiResponse({
+      res,
+      code: 400,
+      success: false,
+      message: 'Failed to fetch lot size constraints for the trading pair.',
+    });
+  }
+
+  console.log({ lotSizeFilter });
+
+  // Adjust the quantity to meet lot size constraints
+  let quantity = asset_balance / symbol_current_market_price.price;
+  quantity = adjustQuantityToLotSize(quantity, lotSizeFilter);
+
+  console.log({ quantity });
 
   // Add your logic to take actions based on the alert
   let orderResponse = null;
@@ -92,7 +164,7 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
     return apiResponse({
       res,
       code: 400,
-      message: `Can't ${order_action} '${base_currency}', Insuficient Funds.`,
+      message: `Can't ${order_action} '${base_currency}', Insufficient Funds.`,
     });
   }
 
@@ -111,6 +183,25 @@ app.post('/api/v1/tradingview/webhook', restrictAccess, authenticateJWT, async (
     data: orderResponse,
   });
 });
+
+async function getLotSizeConstraints(symbol: string) {
+  const response = await client.exchangeInformation();
+  if (response && response.symbols) {
+    const symbolInfo = response.symbols.find((s: any) => s.symbol === symbol);
+    if (symbolInfo && symbolInfo.filters) {
+      return symbolInfo.filters.find((f: any) => f.filterType === 'LOT_SIZE');
+    }
+  }
+  return null;
+}
+
+function adjustQuantityToLotSize(quantity: number, lotSizeFilter: any) {
+  const minQty = parseFloat(lotSizeFilter.minQty);
+  const stepSize = parseFloat(lotSizeFilter.stepSize);
+
+  const adjustedQuantity = minQty + Math.floor((quantity - minQty) / stepSize) * stepSize;
+  return adjustedQuantity;
+}
 
 // websocketStreamClient.ticker('btcusdt');
 
